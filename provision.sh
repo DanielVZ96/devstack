@@ -159,14 +159,23 @@ docker-compose exec -T mysql57 bash -e -c "mysql -uroot mysql" < provision.sql
 if needs_mongo "$to_provision_ordered"; then
 	echo -e "${GREEN}Waiting for MongoDB...${NC}"
 	# mongo container and mongo process/shell inside the container
-	until docker-compose exec -T mongo mongo --eval "db.serverStatus()" &> /dev/null
-	do
+	MONGO_SHELL=$(docker-compose exec -T mongo which mongosh)
+	if [[ $MONGO_SHELL ]] then
+		until docker-compose exec -T mongo mongosh --eval "db.serverStatus()" &> /dev/null
+	else
+		until docker-compose exec -T mongo mongo --eval "db.serverStatus()" &> /dev/null
+	fi
+t	do
 	  printf "."
 	  sleep 1
 	done
 	echo -e "${GREEN}MongoDB ready.${NC}"
 	echo -e "${GREEN}Creating MongoDB users...${NC}"
-    docker-compose exec -T mongo bash -e -c "mongo" < mongo-provision.js
+	if [[ $MONGO_SHELL ]] then
+		docker-compose exec -T mongo bash -e -c "mongosh" < mongo-provision.js
+	else
+		docker-compose exec -T mongo bash -e -c "mongo" < mongo-provision.js
+	fi
 else
 	echo -e "${GREEN}MongoDB preparation not required; skipping.${NC}"
 fi
